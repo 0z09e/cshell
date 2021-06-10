@@ -1,0 +1,4 @@
+cshell-venv
+dist
+cshell.egg-info
+build
