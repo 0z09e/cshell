@@ -2,3 +2,4 @@ cshell-venv
 dist
 cshell.egg-info
 build
+cshell-pypi

