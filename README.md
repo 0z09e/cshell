@@ -10,9 +10,19 @@ This script takes a working webshell as an argument and can perform the followin
 - lstnr : This option generates a payload and copies it to the clipboard. It can also start a listener, and also encodes the payload [Both are Optional]
 
 ## Install
-```pip3 install cshell```
+- From PIP library : 
+  ```bash
+  pip3 install cshell
+  ```
+- From Github : 
+  ```bash
+  git clone https://github.com/0z09e/cshell.git
+  cd cshell
+  sudo python3 setup.py install
+  ```
+  
 ### Usage
-```
+```bash
 $ cshell --help
 usage: cshell.py [-h] [--payloads] {rev,web,lstnr} ...
 
@@ -30,7 +40,7 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 
 
 ### Payloads
-```
+```bash
 $ cshell --payloads
 ========================================================================================================
 Format-Name                     Payload
