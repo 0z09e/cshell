@@ -3,3 +3,4 @@ dist
 cshell.egg-info
 build
 cshell-pypi
+test

