@@ -45,7 +45,7 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 	- GET Method : `cshell web <Target URL with WEB as command. Example : http://victim.com/webshell.php?cmd=WEB>`  
 	- Post Method : `cshell rev -m POST -d <Post DATA in JSON format with WEB as command. Example : '{"cmd" : "WEB"}'> <Target URL. Example : http://victim.com/webshell.php>`  
 - **Generating a payload** :   
-	- `cshell lstnr -f <Format. Example : bash> -i <Interface or IP. Example : 127.0.0.1 or lo>  -p <Port. Example : 1337>
+	- `cshell lstnr -f <Format. Example : bash> -i <Interface or IP. Example : 127.0.0.1 or lo>  -p <Port. Example : 1337>`
   
 
 ## Custom commands for WEB module : 
