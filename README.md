@@ -1,6 +1,6 @@
 # CSHELL  
 ***  
-[![PyPI version fury.io](https://badge.fury.io/py/ansicolortags.svg)](https://pypi.python.org/pypi/cshell/)  [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/0z09e/cshell/LICENSE)  
+[![PyPI version fury.io](https://badge.fury.io/py/ansicolortags.svg)](https://pypi.python.org/pypi/cshell/)  [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/0z09e/cshell/LICENSE)  
   
 ***  
 This script takes a working webshell as an argument and can perform the following operations  
