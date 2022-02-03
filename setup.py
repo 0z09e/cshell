@@ -2,7 +2,7 @@ import setuptools
 from setuptools import setup
 setup(
 	name='cshell',
-	version='1.4.4',
+	version='1.5.1',
 	url="https://github.com/0z09e/cshell",
 	author="Sourav Sen",
 	author_email="0z09e.o3@gmail.com",

